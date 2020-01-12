@@ -3,15 +3,15 @@ from torch import nn
 
 
 class StochasticLSTM(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int):
+    def __init__(self, input_size: int, hidden_size: int, dropout: float):
         super(StochasticLSTM, self).__init__()
 
-        dropout = 0.5
+        self.dropout = dropout
         self.bernoulli_x = torch.distributions.Bernoulli(
-            torch.tensor([dropout, dropout, dropout])
+            torch.full((input_size,), self.dropout)
         )
         self.bernoulli_h = torch.distributions.Bernoulli(
-            torch.tensor([dropout, dropout, dropout, dropout])
+            torch.full((hidden_size,), self.dropout)
         )
 
         self.iter = 10
