@@ -2,9 +2,9 @@ import torch
 from torch import nn
 
 
-class MyLSTM(nn.Module):
+class StochasticLSTM(nn.Module):
     def __init__(self, input_size: int, hidden_size: int):
-        super(MyLSTM, self).__init__()
+        super(StochasticLSTM, self).__init__()
 
         dropout = 0.5
         self.bernoulli_x = torch.distributions.Bernoulli(
