@@ -3,7 +3,7 @@ from torch import nn
 
 from rnn import MyLSTM
 
-l = MyLSTM()
+l = MyLSTM(input_size=3, hidden_size=4)
 
 t = torch.randn((5, 10, 3))
 

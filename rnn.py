@@ -16,22 +16,22 @@ class MyLSTM(nn.Module):
 
         self.iter = 10
 
-        self.Wi = torch.randn((3, 4))
-        self.Ui = torch.randn((4, 4))
+        self.Wi = torch.randn((input_size, hidden_size))
+        self.Ui = torch.randn((hidden_size, hidden_size))
 
-        self.Wf = torch.randn((3, 4))
-        self.Uf = torch.randn((4, 4))
+        self.Wf = torch.randn((input_size, hidden_size))
+        self.Uf = torch.randn((hidden_size, hidden_size))
 
-        self.Wo = torch.randn((3, 4))
-        self.Uo = torch.randn((4, 4))
+        self.Wo = torch.randn((input_size, hidden_size))
+        self.Uo = torch.randn((hidden_size, hidden_size))
 
-        self.Wg = torch.randn((3, 4))
-        self.Ug = torch.randn((4, 4))
+        self.Wg = torch.randn((input_size, hidden_size))
+        self.Ug = torch.randn((hidden_size, hidden_size))
 
     def forward(self, input, hx=None):
         """
-        input shape (sequence, batch, input dimension), in this example (5, 10, 3)
-        output shape (sequence, batch, output dimension), in this example (5, 10, 4)
+        input shape (sequence, batch, input dimension)
+        output shape (sequence, batch, output dimension)
         """
 
         T, B, _ = input.shape
