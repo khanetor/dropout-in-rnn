@@ -5,44 +5,47 @@ from torch import nn
 class StochasticLSTM(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, dropout: float):
         super(StochasticLSTM, self).__init__()
+        
+        self.iter = 10
+        self.input_size = input_size
+        self.hidden_size = hidden_size
 
         self.dropout = dropout
         self.bernoulli_x = torch.distributions.Bernoulli(
-            torch.full((input_size,), self.dropout)
+            torch.full((self.input_size,), self.dropout)
         )
         self.bernoulli_h = torch.distributions.Bernoulli(
             torch.full((hidden_size,), self.dropout)
         )
 
-        self.iter = 10
+        self.Wi = torch.randn((self.input_size, self.hidden_size))
+        self.Ui = torch.randn((self.hidden_size, self.hidden_size))
 
-        self.Wi = torch.randn((input_size, hidden_size))
-        self.Ui = torch.randn((hidden_size, hidden_size))
+        self.Wf = torch.randn((self.input_size, self.hidden_size))
+        self.Uf = torch.randn((self.hidden_size, self.hidden_size))
 
-        self.Wf = torch.randn((input_size, hidden_size))
-        self.Uf = torch.randn((hidden_size, hidden_size))
+        self.Wo = torch.randn((self.input_size, self.hidden_size))
+        self.Uo = torch.randn((self.hidden_size, self.hidden_size))
 
-        self.Wo = torch.randn((input_size, hidden_size))
-        self.Uo = torch.randn((hidden_size, hidden_size))
-
-        self.Wg = torch.randn((input_size, hidden_size))
-        self.Ug = torch.randn((hidden_size, hidden_size))
+        self.Wg = torch.randn((self.input_size, self.hidden_size))
+        self.Ug = torch.randn((self.hidden_size, self.hidden_size))
 
     def forward(self, input, hx=None):
         """
         input shape (sequence, batch, input dimension)
         output shape (sequence, batch, output dimension)
+        return output, (hidden_state, cell_state)
         """
 
         T, B, _ = input.shape
 
         if hx is None:
-            hx = torch.zeros((self.iter, T + 1, 10, 4))
+            hx = torch.zeros((self.iter, T + 1, B, self.hidden_size))
         else:
-            hx = hx.unsqueeze(0).repeat(self.iter, T + 1, 10, 4)
+            hx = hx.unsqueeze(0).repeat(self.iter, T + 1, B, self.hidden_size)
 
-        c = torch.zeros((self.iter, T + 1, 10, 4))
-        o = torch.zeros((self.iter, T, 10, 4))
+        c = torch.zeros((self.iter, T + 1, B, self.hidden_size))
+        o = torch.zeros((self.iter, T, B, self.hidden_size))
 
         for it in range(self.iter):
             # Dropout
