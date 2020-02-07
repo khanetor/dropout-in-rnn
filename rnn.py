@@ -18,17 +18,17 @@ class StochasticLSTM(nn.Module):
             torch.full((hidden_size,), self.dropout)
         )
 
-        self.Wi = torch.randn((self.input_size, self.hidden_size))
-        self.Ui = torch.randn((self.hidden_size, self.hidden_size))
+        self.Wi = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
+        self.Ui = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
 
-        self.Wf = torch.randn((self.input_size, self.hidden_size))
-        self.Uf = torch.randn((self.hidden_size, self.hidden_size))
+        self.Wf = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
+        self.Uf = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
 
-        self.Wo = torch.randn((self.input_size, self.hidden_size))
-        self.Uo = torch.randn((self.hidden_size, self.hidden_size))
+        self.Wo = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
+        self.Uo = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
 
-        self.Wg = torch.randn((self.input_size, self.hidden_size))
-        self.Ug = torch.randn((self.hidden_size, self.hidden_size))
+        self.Wg = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
+        self.Ug = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
 
     def forward(self, input, hx=None):
         """
@@ -40,12 +40,12 @@ class StochasticLSTM(nn.Module):
         T, B, _ = input.shape
 
         if hx is None:
-            hx = torch.zeros((self.iter, T + 1, B, self.hidden_size))
+            hx = torch.zeros((self.iter, T + 1, B, self.hidden_size), dtype=torch.double)
         else:
             hx = hx.unsqueeze(0).repeat(self.iter, T + 1, B, self.hidden_size)
 
-        c = torch.zeros((self.iter, T + 1, B, self.hidden_size))
-        o = torch.zeros((self.iter, T, B, self.hidden_size))
+        c = torch.zeros((self.iter, T + 1, B, self.hidden_size), dtype=torch.double)
+        o = torch.zeros((self.iter, T, B, self.hidden_size), dtype=torch.double)
 
         for it in range(self.iter):
             # Dropout
