@@ -7,7 +7,7 @@
 
 
 ## TODOs
-- [ ] Add biases
-- [ ] Make loss function
+- [x] Add biases
+- [x] Make loss function
 - [ ] Stack multiple LSTM layers
 - [ ] Make GRU layer

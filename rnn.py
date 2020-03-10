@@ -2,33 +2,38 @@ import torch
 from torch import nn
 
 
-class StochasticLSTM(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, dropout: float):
-        super(StochasticLSTM, self).__init__()
-        
-        self.iter = 10
+class StochasticLSTMCell(nn.Module):
+    def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
+        """
+        Args:
+        - dropout_rate: should be between 0 and 1
+        """
+        super(StochasticLSTMCell, self).__init__()
+
         self.input_size = input_size
         self.hidden_size = hidden_size
-
-        self.dropout = dropout
+        
+        if not 0 <= dropout_rate <= 1:
+            raise Exception("Dropout rate should be between 0 and 1")
+        self.dropout = dropout_rate
         self.bernoulli_x = torch.distributions.Bernoulli(
-            torch.full((self.input_size,), self.dropout)
+            torch.full((self.input_size,), 1 - self.dropout)
         )
         self.bernoulli_h = torch.distributions.Bernoulli(
-            torch.full((hidden_size,), self.dropout)
+            torch.full((hidden_size,), 1 - self.dropout)
         )
 
-        self.Wi = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
-        self.Ui = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
+        self.Wi = nn.Linear(self.input_size, self.hidden_size)
+        self.Ui = nn.Linear(self.hidden_size, self.hidden_size)
 
-        self.Wf = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
-        self.Uf = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
+        self.Wf = nn.Linear(self.input_size, self.hidden_size)
+        self.Uf = nn.Linear(self.hidden_size, self.hidden_size)
 
-        self.Wo = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
-        self.Uo = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
+        self.Wo = nn.Linear(self.input_size, self.hidden_size)
+        self.Uo = nn.Linear(self.hidden_size, self.hidden_size)
 
-        self.Wg = torch.randn((self.input_size, self.hidden_size), dtype=torch.double)
-        self.Ug = torch.randn((self.hidden_size, self.hidden_size), dtype=torch.double)
+        self.Wg = nn.Linear(self.input_size, self.hidden_size)
+        self.Ug = nn.Linear(self.hidden_size, self.hidden_size)
 
     def forward(self, input, hx=None):
         """
@@ -40,35 +45,53 @@ class StochasticLSTM(nn.Module):
         T, B, _ = input.shape
 
         if hx is None:
-            hx = torch.zeros((self.iter, T + 1, B, self.hidden_size), dtype=torch.double)
+            hx = [torch.zeros((B, self.hidden_size), dtype=input.dtype)]
         else:
-            hx = hx.unsqueeze(0).repeat(self.iter, T + 1, B, self.hidden_size)
+            hx = [_h for _h in hx]
 
-        c = torch.zeros((self.iter, T + 1, B, self.hidden_size), dtype=torch.double)
-        o = torch.zeros((self.iter, T, B, self.hidden_size), dtype=torch.double)
+        c = [torch.zeros((B, self.hidden_size), dtype=input.dtype)]
+        o = []
 
-        for it in range(self.iter):
-            # Dropout
-            zx = self.bernoulli_x.sample()
-            zh = self.bernoulli_h.sample()
+        # Dropout
+        zx = self.bernoulli_x.sample()
+        zh = self.bernoulli_h.sample()
 
-            for t in range(T):
-                x = input[t] * zx
-                h = hx[it, t] * zh
+        for t in range(T):
+            x = input[t] * zx
+            h = hx[t] * zh
 
-                i = torch.sigmoid(torch.matmul(h, self.Ui) + torch.matmul(x, self.Wi))
-                f = torch.sigmoid(torch.matmul(h, self.Uf) + torch.matmul(x, self.Wf))
+            i = torch.sigmoid(self.Ui(h) + self.Wi(x))
+            f = torch.sigmoid(self.Uf(h) + self.Wf(x))
 
-                o[it, t] = torch.sigmoid(
-                    torch.matmul(h, self.Uo) + torch.matmul(x, self.Wo)
-                )
-                g = torch.tanh(torch.matmul(h, self.Ug) + torch.matmul(x, self.Wg))
+            o.append(torch.sigmoid(self.Uo(h) + self.Wo(x)))
+            g = torch.tanh(self.Ug(h) + self.Wg(x))
 
-                c[it, t + 1] = f * c[it, t] + i * g
-                hx[it, t + 1] = o[it, t] * torch.tanh(c[it, t + 1])
+            c.append(f * c[t] + i * g)
+            hx.append(o[t] * torch.tanh(c[t + 1]))
 
-        o = torch.mean(o, axis=0)
-        c = torch.mean(c[:, 1:], axis=0)
-        hx = torch.mean(hx[:, 1:], axis=0)
-
+        o = torch.stack(o)
+        c = torch.stack(c[1:])
+        hx = torch.stack(hx[1:])
+        
         return o, (hx, c)
+
+
+class StochasticLSTM(nn.Module):
+    """Pass input through LSTM several time and find average"""
+
+    def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
+        super(StochasticLSTM, self).__init__()
+        self.layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)
+        self.iter = 5
+    
+    def forward(self, input, hx=None):
+        oo, hh, cc = [], [], []
+        for iter in range(self.iter):
+            o, (hid, c) = self.layer(input, hx)
+            oo.append(o)
+            hh.append(hid)
+            cc.append(c)
+        oo = torch.mean(torch.stack(oo), axis=0)
+        hh = torch.mean(torch.stack(hh), axis=0)
+        cc = torch.mean(torch.stack(cc), axis=0)
+        return oo, (hh, cc)
