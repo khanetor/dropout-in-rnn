@@ -24,15 +24,13 @@ class StochasticLSTMCell(nn.Module):
         )
 
         self.Wi = nn.Linear(self.input_size, self.hidden_size)
-        self.Ui = nn.Linear(self.hidden_size, self.hidden_size)
-
         self.Wf = nn.Linear(self.input_size, self.hidden_size)
-        self.Uf = nn.Linear(self.hidden_size, self.hidden_size)
-
         self.Wo = nn.Linear(self.input_size, self.hidden_size)
-        self.Uo = nn.Linear(self.hidden_size, self.hidden_size)
-
         self.Wg = nn.Linear(self.input_size, self.hidden_size)
+        
+        self.Ui = nn.Linear(self.hidden_size, self.hidden_size)
+        self.Uf = nn.Linear(self.hidden_size, self.hidden_size)
+        self.Uo = nn.Linear(self.hidden_size, self.hidden_size)
         self.Ug = nn.Linear(self.hidden_size, self.hidden_size)
 
     def forward(self, input, hx=None):
@@ -82,11 +80,16 @@ class StochasticLSTM(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
         super(StochasticLSTM, self).__init__()
         self.layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)
-        self.iter = 5
     
     def forward(self, input, hx=None):
+        if self.training:
+            loops = 1
+        else:
+            loops = 10
+
         oo, hh, cc = [], [], []
-        for iter in range(self.iter):
+
+        for loop in range(loops):
             o, (hid, c) = self.layer(input, hx)
             oo.append(o)
             hh.append(hid)
