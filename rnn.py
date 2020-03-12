@@ -16,12 +16,18 @@ class StochasticLSTMCell(nn.Module):
         if not 0 <= dropout_rate <= 1:
             raise Exception("Dropout rate should be between 0 and 1")
         self.dropout = dropout_rate
-        self.bernoulli_x = torch.distributions.Bernoulli(
-            torch.full((self.input_size,), 1 - self.dropout)
-        )
+        if input_size == 1:
+            self.bernoulli_x = torch.distributions.Bernoulli(
+                torch.full((self.input_size,), 1.0)
+            )
+        else:
+            self.bernoulli_x = torch.distributions.Bernoulli(
+                torch.full((self.input_size,), 1 - self.dropout)
+            )
         self.bernoulli_h = torch.distributions.Bernoulli(
-            torch.full((hidden_size,), 1 - self.dropout)
+            torch.full((self.hidden_size,), 1 - self.dropout)
         )
+        
 
         self.Wi = nn.Linear(self.input_size, self.hidden_size)
         self.Wf = nn.Linear(self.input_size, self.hidden_size)
