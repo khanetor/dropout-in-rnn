@@ -11,3 +11,8 @@
 - [x] Make loss function
 - [ ] Stack multiple LSTM layers
 - [ ] Make GRU layer
+- [x] Handle single dimension input
+- [x] Iterate Stochastic pass once during training
+- [x] Use parameter optimizer instead of writing custom loss functions
+- [ ] Stack Stochastic LSTM units to 1 matrix
+- [ ] Download clinical data

@@ -1,47 +1,22 @@
-"""Dropout RNN training utilities"""
+# Dropout RNN training utilities
 
-import torch
-from torch import nn
+def filter_parameters(param_gen, prefix, postfix):
+    """Filter parameters by names
+    -Args:
+       param_gen: named_parameters
+       prefix: prefix of parameter names
+       postfix: postfix of parameter names"""
 
-
-class _DropoutLoss(nn.Module):
-    def __init__(self, length_scale, precision, dropout):
-        super(_DropoutLoss, self).__init__()
-        self.length_scale = length_scale
-        self.precision = precision
-        self.dropout = dropout
-        self.loss = None
-    
-    def forward(self, outputs, labels, named_params, N):
-        if self.loss is None:
-            raise "Loss function not initialize"
-
-        named_params = [p for p in named_params]
-        M = 0.5 * self.length_scale**2 * self.dropout / self.precision / N * \
-            torch.norm(
-                torch.cat([p.view(-1) for name, p in named_params if name.endswith("weight")]),
-                2
-            )
-        m = 0.5 * self.length_scale**2 / self.precision / N * \
-            torch.norm(
-                torch.cat([p.view(-1) for name, p in named_params if name.endswith("bias")]),
-                2
-            )
-        return self.loss(outputs, labels) + M + m
-
-class DropoutMSELoss(_DropoutLoss):
-    def __init__(self, length_scale, precision, dropout):
-        super(DropoutMSELoss, self).__init__(length_scale, precision, dropout)
-        self.loss = nn.MSELoss()
-    
-
-class DropoutCELoss(_DropoutLoss):
-    def __init__(self, length_scale, precision, dropout):
-        super(DropoutCELoss, self).__init__(length_scale, precision, dropout)
-        self.loss = nn.CrossEntropyLoss()
+    filtered = filter(lambda named_params: named_params[0].startswith(prefix), param_gen)
+    filtered = filter(lambda named_params: named_params[0].endswith(postfix), filtered)
+    return map(lambda named_params: named_params[1], filtered)
 
 
-class DropoutBCELoss(_DropoutLoss):
-    def __init__(self, length_scale, precision, dropout):
-        super(DropoutBCELoss, self).__init__(length_scale, precision, dropout)
-        self.loss = nn.BCELoss()
+def weight_coefficient(length_scale, precision, dropout_rate, N):
+    """Calculate the coefficient of dropout rnn layer weight"""
+    return 0.5 * length_scale**2 * dropout_rate / precision / N
+
+
+def bias_coefficient(length_scale, precision, N):
+    """Calculate the coefficient of dropout rnn layer bias"""
+    return 0.5 * length_scale**2 / precision / N
