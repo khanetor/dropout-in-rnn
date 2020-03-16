@@ -1,5 +1,6 @@
+from typing import Optional, Tuple
 import torch
-from torch import nn
+from torch import nn, Tensor
 
 
 class StochasticLSTMCell(nn.Module):
@@ -39,7 +40,7 @@ class StochasticLSTMCell(nn.Module):
         self.Uo = nn.Linear(self.hidden_size, self.hidden_size)
         self.Ug = nn.Linear(self.hidden_size, self.hidden_size)
 
-    def forward(self, input, hx=None):
+    def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
         """
         input shape (sequence, batch, input dimension)
         output shape (sequence, batch, output dimension)
@@ -49,12 +50,12 @@ class StochasticLSTMCell(nn.Module):
         T, B, _ = input.shape
 
         if hx is None:
-            hx = [torch.zeros((B, self.hidden_size), dtype=input.dtype)]
+            h_t = torch.zeros((B, self.hidden_size), dtype=input.dtype)
+            c_t = torch.zeros((B, self.hidden_size), dtype=input.dtype)
         else:
-            hx = [_h for _h in hx]
+            h_t, c_t = hx
 
-        c = [torch.zeros((B, self.hidden_size), dtype=input.dtype)]
-        o = []
+        hn = []
 
         # Dropout
         zx = self.bernoulli_x.sample()
@@ -62,22 +63,21 @@ class StochasticLSTMCell(nn.Module):
 
         for t in range(T):
             x = input[t] * zx
-            h = hx[t] * zh
+            h = h_t * zh
 
             i = torch.sigmoid(self.Ui(h) + self.Wi(x))
             f = torch.sigmoid(self.Uf(h) + self.Wf(x))
-
-            o.append(torch.sigmoid(self.Uo(h) + self.Wo(x)))
+            o = torch.sigmoid(self.Uo(h) + self.Wo(x))
             g = torch.tanh(self.Ug(h) + self.Wg(x))
 
-            c.append(f * c[t] + i * g)
-            hx.append(o[t] * torch.tanh(c[t + 1]))
+            c_t = f * c_t + i * g
+            h_t = o * torch.tanh(c_t)
 
-        o = torch.stack(o)
-        c = torch.stack(c[1:])
-        hx = torch.stack(hx[1:])
+            hn.append(h_t)
+
+        hn = torch.stack(hn)
         
-        return o, (hx, c)
+        return hn, (h_t, c_t)
 
 
 class StochasticLSTM(nn.Module):
@@ -87,7 +87,7 @@ class StochasticLSTM(nn.Module):
         super(StochasticLSTM, self).__init__()
         self.layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)
     
-    def forward(self, input, hx=None):
+    def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
         if self.training:
             loops = 1
         else:
