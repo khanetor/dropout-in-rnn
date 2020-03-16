@@ -4,6 +4,8 @@
 ## Dataset
 - [Penn Tree Bank](https://www.kaggle.com/nltkdata/penn-tree-bank/data)
 - Cornell film reviews: sentence polarity
+- Apple Stock from Yahoo
+- [Occupancy prediction](https://archive.ics.uci.edu/ml/datasets/Occupancy+Detection+)
 
 
 ## TODOs
