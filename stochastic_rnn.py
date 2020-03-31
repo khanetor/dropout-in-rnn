@@ -3,13 +3,13 @@ import torch
 from torch import nn, Tensor
 
 
-class DropoutLSTMCell(nn.Module):
+class StochasticLSTMCell(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
         """
         Args:
         - dropout_rate: should be between 0 and 1
         """
-        super(DropoutLSTMCell, self).__init__()
+        super(StochasticLSTMCell, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -79,34 +79,9 @@ class DropoutLSTMCell(nn.Module):
         return hn, (h_t, c_t)
 
 
-class StochasticLSTMCell(nn.Module):
-    """Pass input through LSTM several time and find average"""
-
-    def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
-        super(StochasticLSTMCell, self).__init__()
-        self.layer = DropoutLSTMCell(input_size, hidden_size, dropout_rate)
-    
-    def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
-        if self.training:
-            loops = 1
-        else:
-            loops = 10
-
-        oo, cc = [], []
-
-        for loop in range(loops):
-            o, (_, c) = self.layer(input, hx)
-            oo.append(o)
-            cc.append(c)
-        oo = torch.mean(torch.stack(oo), axis=0)
-        hh = oo[-1,:]
-        cc = torch.mean(torch.stack(cc), axis=0)
-        return oo, (hh, cc)
-
-
 class StochasticLSTM(nn.Module):
     """LSTM stacked layers with dropout and MCMC"""
-    
+
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float, num_layers: int=1):
         super(StochasticLSTM, self).__init__()
         self.first_layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)

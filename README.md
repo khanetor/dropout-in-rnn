@@ -15,6 +15,9 @@
 - [x] Handle single dimension input
 - [x] Iterate Stochastic pass once during training
 - [x] Use parameter optimizer instead of writing custom loss functions
+- [ ] Make stochastic modules for regression
+- [x] Make stochastic modules for classification
+- [ ] Compute predictive variance
 - [ ] Download clinical data
 - [ ] Early stop in training
 - [ ] Make GRU layer
