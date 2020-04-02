@@ -18,16 +18,10 @@ class StochasticLSTMCell(nn.Module):
             raise Exception("Dropout rate should be between 0 and 1")
         self.dropout = dropout_rate
         if input_size == 1:
-            self.bernoulli_x = torch.distributions.Bernoulli(
-                torch.full((self.input_size,), 1.0)
-            )
+            self.bernoulli_x = torch.distributions.Bernoulli(1.0)
         else:
-            self.bernoulli_x = torch.distributions.Bernoulli(
-                torch.full((self.input_size,), 1 - self.dropout)
-            )
-        self.bernoulli_h = torch.distributions.Bernoulli(
-            torch.full((self.hidden_size,), 1 - self.dropout)
-        )
+            self.bernoulli_x = torch.distributions.Bernoulli(1 - self.dropout)
+        self.bernoulli_h = torch.distributions.Bernoulli(1 - self.dropout)
 
         self.Wi = nn.Linear(self.input_size, self.hidden_size)
         self.Wf = nn.Linear(self.input_size, self.hidden_size)
@@ -46,7 +40,7 @@ class StochasticLSTMCell(nn.Module):
         return output, (hidden_state, cell_state)
         """
 
-        T, B, _ = input.shape
+        T, B = input.shape[0:2]
 
         if hx is None:
             h_t = torch.zeros((B, self.hidden_size), dtype=input.dtype)
@@ -56,18 +50,19 @@ class StochasticLSTMCell(nn.Module):
 
         hn = []
 
-        # Dropout
-        zx = self.bernoulli_x.sample()
-        zh = self.bernoulli_h.sample()
+        # Dropout masks for 4 gates
+        GATES = 4
+        zx = self.bernoulli_x.sample((GATES, B, self.input_size))
+        zh = self.bernoulli_h.sample((GATES, B, self.hidden_size))
 
         for t in range(T):
-            x = input[t] * zx
-            h = h_t * zh
+            x_i, x_f, x_o, x_g = (input[t] * zx[m] for m in range(GATES))
+            h_i, h_f, h_o, h_g = (h_t * zh[m] for m in range(GATES))
 
-            i = torch.sigmoid(self.Ui(h) + self.Wi(x))
-            f = torch.sigmoid(self.Uf(h) + self.Wf(x))
-            o = torch.sigmoid(self.Uo(h) + self.Wo(x))
-            g = torch.tanh(self.Ug(h) + self.Wg(x))
+            i = torch.sigmoid(self.Ui(h_i) + self.Wi(x_i))
+            f = torch.sigmoid(self.Uf(h_f) + self.Wf(x_f))
+            o = torch.sigmoid(self.Uo(h_o) + self.Wo(x_o))
+            g = torch.tanh(self.Ug(h_g) + self.Wg(x_g))
 
             c_t = f * c_t + i * g
             h_t = o * torch.tanh(c_t)
