@@ -1,15 +1,18 @@
+"""Dropout variant of RNN layers
+Binary dropout is applied even in inference
+"""
 from typing import Optional, Tuple
 import torch
 from torch import nn, Tensor
 
 
-class StochasticLSTMCell(nn.Module):
+class DropoutLSTMCell(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
         """
         Args:
         - dropout_rate: should be between 0 and 1
         """
-        super(StochasticLSTMCell, self).__init__()
+        super(DropoutLSTMCell, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -74,13 +77,13 @@ class StochasticLSTMCell(nn.Module):
         return hn, (h_t, c_t)
 
 
-class StochasticLSTM(nn.Module):
+class DropoutLSTM(nn.Module):
     """LSTM stacked layers with dropout and MCMC"""
 
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float, num_layers: int=1):
-        super(StochasticLSTM, self).__init__()
-        self.first_layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)
-        self.hidden_layers = nn.ModuleList([StochasticLSTMCell(hidden_size, hidden_size, dropout_rate) for i in range(num_layers-1)])
+        super(DropoutLSTM, self).__init__()
+        self.first_layer = DropoutLSTMCell(input_size, hidden_size, dropout_rate)
+        self.hidden_layers = nn.ModuleList([DropoutLSTMCell(hidden_size, hidden_size, dropout_rate) for i in range(num_layers-1)])
     
     def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
         h_n, c_n = [], []

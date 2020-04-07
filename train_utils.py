@@ -1,4 +1,5 @@
-# Dropout RNN training utilities
+"""Dropout RNN training utilities"""
+import torch
 
 def filter_parameters(param_gen, prefix, postfix):
     """Filter parameters by names
@@ -23,7 +24,7 @@ def bias_coefficient(length_scale, precision, N):
 
 
 # TODO: early stop
-def train_model(model, dataloader, criterion, optimizer, epochs, dual_output=False):
+def train_model(model, dataloader, criterion, optimizer, epochs):
     """Train model"""
     model.train()
     batch_count = len(dataloader)
@@ -31,12 +32,8 @@ def train_model(model, dataloader, criterion, optimizer, epochs, dual_output=Fal
         running_loss = 0.0
         for i, (x, y) in enumerate(dataloader):
             optimizer.zero_grad()
-            if dual_output:
-                mean, log_var = model(x.transpose(-2, -3))
-                loss = criterion(mean.flatten(), log_var.flatten(), y.double())
-            else:
-                outputs = model(x.transpose(-2, -3))
-                loss = criterion(outputs.flatten(), y.double())
+            output1, output2 = model(x.transpose(-2, -3))
+            loss = criterion(output1, output2, y)
             loss.backward()
             optimizer.step()
 

@@ -19,6 +19,7 @@
 - [x] Make stochastic modules for classification
 - [x] Compute predictive variance for classification
 - [ ] Compute predictive variance for regression
+- [ ] Optimize dropout rate (using Concrete Dropout)
 - [x] Download clinical data
 - [ ] Early stop in training (use validation error)
 - [ ] Make GRU layer
