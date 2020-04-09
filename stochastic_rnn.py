@@ -6,13 +6,13 @@ import torch
 from torch import nn, Tensor
 
 
-class DropoutLSTMCell(nn.Module):
+class StochasticLSTMCell(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float):
         """
         Args:
         - dropout_rate: should be between 0 and 1
         """
-        super(DropoutLSTMCell, self).__init__()
+        super(StochasticLSTMCell, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -46,17 +46,17 @@ class DropoutLSTMCell(nn.Module):
         T, B = input.shape[0:2]
 
         if hx is None:
-            h_t = torch.zeros((B, self.hidden_size), dtype=input.dtype)
-            c_t = torch.zeros((B, self.hidden_size), dtype=input.dtype)
+            h_t = torch.zeros(B, self.hidden_size, dtype=input.dtype)
+            c_t = torch.zeros(B, self.hidden_size, dtype=input.dtype)
         else:
             h_t, c_t = hx
 
-        hn = []
+        hn = torch.empty(T, B, self.hidden_size, dtype=input.dtype)
 
-        # Dropout masks for 4 gates
+        # Dropout masks for 4 gates, scale input by 1 / (1 - p)
         GATES = 4
-        zx = self.bernoulli_x.sample((GATES, B, self.input_size))
-        zh = self.bernoulli_h.sample((GATES, B, self.hidden_size))
+        zx = self.bernoulli_x.sample((GATES, B, self.input_size)) / (1 - self.dropout)
+        zh = self.bernoulli_h.sample((GATES, B, self.hidden_size)) / (1 - self.dropout)
 
         for t in range(T):
             x_i, x_f, x_o, x_g = (input[t] * zx[m] for m in range(GATES))
@@ -69,36 +69,34 @@ class DropoutLSTMCell(nn.Module):
 
             c_t = f * c_t + i * g
             h_t = o * torch.tanh(c_t)
-
-            hn.append(h_t)
-
-        hn = torch.stack(hn)
+            hn[t] = h_t
         
         return hn, (h_t, c_t)
 
 
-class DropoutLSTM(nn.Module):
+class StochasticLSTM(nn.Module):
     """LSTM stacked layers with dropout and MCMC"""
 
     def __init__(self, input_size: int, hidden_size: int, dropout_rate: float, num_layers: int=1):
-        super(DropoutLSTM, self).__init__()
-        self.first_layer = DropoutLSTMCell(input_size, hidden_size, dropout_rate)
-        self.hidden_layers = nn.ModuleList([DropoutLSTMCell(hidden_size, hidden_size, dropout_rate) for i in range(num_layers-1)])
+        super(StochasticLSTM, self).__init__()
+        self.num_layers = num_layers
+        self.first_layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)
+        self.hidden_layers = nn.ModuleList([StochasticLSTMCell(hidden_size, hidden_size, dropout_rate) for i in range(num_layers-1)])
     
     def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
-        h_n, c_n = [], []
+        #h_n, c_n = [], []
+        B = input.shape[1]
+        h_n = torch.empty(self.num_layers, B, self.first_layer.hidden_size)
+        c_n = torch.empty(self.num_layers, B, self.first_layer.hidden_size)
         
         outputs, (h, c) = self.first_layer(input, hx)
-        h_n.append(h)
-        c_n.append(c)
+        h_n[0] = h
+        c_n[0] = c
 
-        for layer in self.hidden_layers:
+        for i, layer in enumerate(self.hidden_layers):
             outputs, (h, c) = layer(outputs, (h, c))
-            h_n.append(h)
-            c_n.append(c)
-        
-        h_n = torch.stack(h_n)
-        c_n = torch.stack(c_n)
-        
+            h_n[i+1] = h
+            c_n[i+1] = c
+
         return outputs, (h_n, c_n)
         

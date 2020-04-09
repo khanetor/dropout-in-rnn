@@ -3,7 +3,7 @@ from torch import Tensor
 import torch
 
 
-def prediction_avg(props: Tensor):
+def score_avg(props: Tensor):
     return props.mean(axis=0)
 
 def aleatoric_uncertainty(props: Tensor):
