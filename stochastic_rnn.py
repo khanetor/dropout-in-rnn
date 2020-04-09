@@ -36,6 +36,13 @@ class StochasticLSTMCell(nn.Module):
         self.Uo = nn.Linear(self.hidden_size, self.hidden_size)
         self.Ug = nn.Linear(self.hidden_size, self.hidden_size)
 
+    def sample_mask(self, B):
+        """Dropout masks for 4 gates, scale input by 1 / (1 - p)"""
+        GATES = 4
+        zx = self.bernoulli_x.sample((GATES, B, self.input_size)) / (1 - self.dropout)
+        zh = self.bernoulli_h.sample((GATES, B, self.hidden_size)) / (1 - self.dropout)
+        return zx, zh
+        
     def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
         """
         input shape (sequence, batch, input dimension)
@@ -53,14 +60,12 @@ class StochasticLSTMCell(nn.Module):
 
         hn = torch.empty(T, B, self.hidden_size, dtype=input.dtype)
 
-        # Dropout masks for 4 gates, scale input by 1 / (1 - p)
-        GATES = 4
-        zx = self.bernoulli_x.sample((GATES, B, self.input_size)) / (1 - self.dropout)
-        zh = self.bernoulli_h.sample((GATES, B, self.hidden_size)) / (1 - self.dropout)
-
+        # Masks
+        zx, zh = self.sample_mask(B)
+        
         for t in range(T):
-            x_i, x_f, x_o, x_g = (input[t] * zx[m] for m in range(GATES))
-            h_i, h_f, h_o, h_g = (h_t * zh[m] for m in range(GATES))
+            x_i, x_f, x_o, x_g = (input[t] * zx_ for zx_ in zx)
+            h_i, h_f, h_o, h_g = (h_t * zh_ for zh_ in zh)
 
             i = torch.sigmoid(self.Ui(h_i) + self.Wi(x_i))
             f = torch.sigmoid(self.Uf(h_f) + self.Wf(x_f))
