@@ -19,8 +19,7 @@
 - [x] Make stochastic modules for classification
 - [x] Compute predictive variance for classification
 - [x] Compute predictive variance for regression
-- [ ] Optimize dropout rate (using Concrete Dropout)
+- [x] Optimize dropout rate (using Concrete Dropout)
 - [x] Download clinical data
 - [x] Early stop in training (use validation error)
-- [ ] Make GRU layer
 - [ ] Make equivalent in Tensorflow

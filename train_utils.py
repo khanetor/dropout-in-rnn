@@ -25,7 +25,7 @@ class BCMetric(Metric):
         print("Accuracy = %.3f" % self.accuracy())
 
 
-def train_model(model, trainloader, valloader, criterion, optimizer, path, epochs, patience=5, metrics={}):
+def train_model(model, trainloader, valloader, criterion, optimizer, path, epochs=100, patience=5, metrics={}):
     """Train model"""
     best_val_loss = float("inf")
     retry = 0
@@ -33,26 +33,25 @@ def train_model(model, trainloader, valloader, criterion, optimizer, path, epoch
         for phase in ["train", "validate"]:
             if phase == "train":
                 model.train()
-                batch_count = len(trainloader)
                 dataloader = trainloader
             else:
                 model.eval()
-                batch_count = len(valloader)
                 dataloader = valloader
 
+            batch_count = len(dataloader)
             running_loss = 0.
             
             for i, (x, y) in enumerate(dataloader):
                 if phase == "train":
                     optimizer.zero_grad()
                     output1, output2 = model(x.transpose(-2, -3))
-                    loss = criterion(output1, output2, y) + model.regularizer(len(dataloader.dataset))
+                    loss = criterion(output1, output2, y) + model.regularizer() / len(dataloader.dataset)
                     loss.backward()
                     optimizer.step()
                 else:
                     with torch.no_grad():
                         output1, output2 = model(x.transpose(-2, -3))
-                        loss = criterion(output1, output2, y) + model.regularizer(len(dataloader.dataset))
+                        loss = criterion(output1, output2, y) + model.regularizer() / len(dataloader.dataset)
                         for metric in metrics:
                             metric.collect(y, output1)
                 running_loss += loss.item()
