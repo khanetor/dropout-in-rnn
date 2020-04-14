@@ -6,3 +6,5 @@ __pycache__
 *.pt
 *.pth
 
+/YerevaNN-mimic3-benchmarks-847eadc
+

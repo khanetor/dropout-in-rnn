@@ -22,4 +22,4 @@
 - [x] Optimize dropout rate (using Concrete Dropout)
 - [x] Download clinical data
 - [x] Early stop in training (use validation error)
-- [ ] Make equivalent in Tensorflow
+- [x] Make equivalent in Tensorflow
