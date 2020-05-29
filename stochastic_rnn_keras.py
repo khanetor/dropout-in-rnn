@@ -24,8 +24,8 @@ class StochasticLSTM(LSTM):
     def build(self, input_shape):
         super().build(input_shape)
         
-        ls = 1e-2
-        tau = 1.0
+        reg = 1/14681
+        dropout_reg = 2/14681
         def dropout_constraint(p):
             """Constraint probability between 0.0 and 1.0"""
             return K.clip(p, K.epsilon(), 1. - K.epsilon())
@@ -35,8 +35,10 @@ class StochasticLSTM(LSTM):
                                           shape=(),
                                           initializer=initializers.uniform(minval=0.3, maxval=0.7),
                                           constraint=dropout_constraint,
-                                          trainable=True
-                                         )
+                                          trainable=True)
+            self.add_loss(dropout_reg*input_shape[-1] *
+                          (self.p * K.log(self.p) +
+                           (1-self.p) * K.log(1-self.p)))
         else:
             self.p = self.dropout
 
@@ -45,21 +47,17 @@ class StochasticLSTM(LSTM):
                                           shape=(),
                                           initializer=initializers.uniform(minval=0.3, maxval=0.7),
                                           constraint=dropout_constraint,
-                                          trainable=True
-                                         )
+                                          trainable=True)
+            self.add_loss(dropout_reg*self.units *
+                          (self.p_r * K.log(self.p_r) +
+                           (1-self.p_r) * K.log(1-self.p_r)))
         else:
             self.p_r = self.recurrent_dropout
 
-        
-
-        # dropout loss
-        self.add_loss(input_shape[-1] * (self.p * K.log(self.p) + (1-self.p) * K.log(1-self.p)))
-        self.add_loss(self.units * (self.p_r * K.log(self.p_r) + (1-self.p_r) * K.log(1-self.p_r)))
-
         # weight loss
-        self.add_loss(0.5 * ls**2 * (1.-self.p) / tau * K.sum(K.square(self.cell.kernel)))
-        self.add_loss(0.5 * ls**2 * (1.-self.p_r) / tau * K.sum(K.square(self.cell.recurrent_kernel)))
-        self.add_loss(0.5 * ls**2 / tau * K.sum(K.square(self.cell.bias)))
+        self.add_loss(reg / (1.-self.p) * K.sum(K.square(self.cell.kernel)))
+        self.add_loss(reg / (1.-self.p_r) * K.sum(K.square(self.cell.recurrent_kernel)))
+        self.add_loss(reg * K.sum(K.square(self.cell.bias)))
         
         self.built = True
     

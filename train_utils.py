@@ -17,9 +17,9 @@ class Metric:
         raise Exception("Not implemented")
 
 
-class BCMetric(Metric): 
+class BCLogitMetric(Metric): 
     def accuracy(self):
-        return accuracy_score(self.Y, torch.round(self.Y_pred))
+        return accuracy_score(self.Y, torch.round(torch.sigmoid(self.Y_pred)))
     
     def print_metric(self):
         print("Accuracy = %.3f" % self.accuracy())
@@ -44,16 +44,17 @@ def train_model(model, trainloader, valloader, criterion, optimizer, path, epoch
             for i, (x, y) in enumerate(dataloader):
                 if phase == "train":
                     optimizer.zero_grad()
-                    output1, output2 = model(x.transpose(-2, -3))
-                    loss = criterion(output1, output2, y) + model.regularizer() / len(dataloader.dataset)
-                    loss.backward()
+                    output = model(x.transpose(-2, -3))
+                    loss = criterion(output, y)
+                    loss_ = loss + model.regularizer() / len(dataloader.dataset)
+                    loss_.backward()
                     optimizer.step()
                 else:
                     with torch.no_grad():
-                        output1, output2 = model(x.transpose(-2, -3))
-                        loss = criterion(output1, output2, y) + model.regularizer() / len(dataloader.dataset)
+                        output = model(x.transpose(-2, -3))
+                        loss = criterion(output, y)
                         for metric in metrics:
-                            metric.collect(y, output1)
+                            metric.collect(y, output)
                 running_loss += loss.item()
                 
                 # print statistics

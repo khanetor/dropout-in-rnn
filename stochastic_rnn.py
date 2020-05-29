@@ -1,30 +1,25 @@
-"""Dropout variant of RNN layers
-Binary dropout is applied in training and in inference
-User can specify dropout rate, or
-dropout rate can be learned during training
-"""
 from typing import Optional, Tuple
 import torch
 from torch import nn, Tensor
 
 
 class StochasticLSTMCell(nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, dropout_rate: Optional[float]=None):
+    def __init__(self, input_size: int, hidden_size: int, dropout: Optional[float]=None):
         """
         Args:
-        - dropout_rate: should be between 0 and 1
+        - dropout: should be between 0 and 1
         """
         super(StochasticLSTMCell, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
         
-        if dropout_rate is None:
+        if dropout is None:
             self.p_logit = nn.Parameter(torch.empty(1).normal_())
-        elif not 0 < dropout_rate < 1:
+        elif not 0 < dropout < 1:
             raise Exception("Dropout rate should be between in (0, 1)")
         else:
-            self.p_logit = dropout_rate
+            self.p_logit = dropout
 
         self.Wi = nn.Linear(self.input_size, self.hidden_size)
         self.Wf = nn.Linear(self.input_size, self.hidden_size)
@@ -101,7 +96,7 @@ class StochasticLSTMCell(nn.Module):
         # Weight
         weight_sum = torch.tensor([
             torch.sum(params**2) for name, params in self.named_parameters() if name.endswith("weight")
-        ]).sum() * (1-p)
+        ]).sum() / (1.-p)
         
         # Bias
         bias_sum = torch.tensor([
@@ -113,7 +108,7 @@ class StochasticLSTMCell(nn.Module):
         else:
              # Dropout
             dropout_reg = self.input_size * (p * torch.log(p) + (1-p)*torch.log(1-p))
-        return weight_sum, bias_sum, dropout_reg
+        return weight_sum, bias_sum, 2.*dropout_reg
         
     def forward(self, input: Tensor, hx: Optional[Tuple[Tensor, Tensor]]=None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
         """
@@ -154,11 +149,11 @@ class StochasticLSTMCell(nn.Module):
 class StochasticLSTM(nn.Module):
     """LSTM stacked layers with dropout and MCMC"""
 
-    def __init__(self, input_size: int, hidden_size: int, dropout_rate:Optional[float]=None, num_layers: int=1):
+    def __init__(self, input_size: int, hidden_size: int, dropout:Optional[float]=None, num_layers: int=1):
         super(StochasticLSTM, self).__init__()
         self.num_layers = num_layers
-        self.first_layer = StochasticLSTMCell(input_size, hidden_size, dropout_rate)
-        self.hidden_layers = nn.ModuleList([StochasticLSTMCell(hidden_size, hidden_size, dropout_rate) for i in range(num_layers-1)])
+        self.first_layer = StochasticLSTMCell(input_size, hidden_size, dropout)
+        self.hidden_layers = nn.ModuleList([StochasticLSTMCell(hidden_size, hidden_size, dropout) for i in range(num_layers-1)])
     
     def regularizer(self):
         total_weight_reg, total_bias_reg, total_dropout_reg = self.first_layer.regularizer()
