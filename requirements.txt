@@ -1,6 +1,6 @@
 jupyterlab==1.2.21
 matplotlib==3.2
-numpy==1.18
+numpy==1.21.0
 pandas==1.0
 pandas-datareader==0.8
 seaborn==0.9
